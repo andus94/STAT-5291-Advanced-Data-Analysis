@@ -1,0 +1,11 @@
+---
+title: "HW_1"
+author: "Andus"
+date: "9/17/2020"
+output: pdf_document
+---
+
+```{r}
+
+```
+
