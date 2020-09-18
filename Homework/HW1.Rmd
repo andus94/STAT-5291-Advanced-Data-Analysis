@@ -23,18 +23,29 @@ Completed
 Using simple boxplots we can see that in the male category there is one salary of 8100 that is above the Upper Limit, which can be considered an outlier.
 
 ```{r}
+################################################
+#
+# Creates boxplot/histogram to identify outliers
+#
+################################################
+
+# Load Relevant Libraries/Data
 library(Sleuth3)
 library(ggplot2)
 library(dplyr)
 df <- case0102
 
+# Initialize Boxplot
 p <- ggplot(data = df, aes(x = Salary,
                            fill = Sex))
-p +geom_boxplot() + coord_flip() + theme(axis.title.x=element_blank(), 
+
+# Plot Boxplot
+p + geom_boxplot() + coord_flip() + theme(axis.title.x=element_blank(), 
                                          axis.text.x=element_blank(),
                                          axis.ticks.x=element_blank()) +
   labs(title = "Salary by Gender") 
 
+# Plot Histogram
 p + geom_histogram(bins = 30) + labs(title = "Histogram of Salary by Gender")
 ```
 
@@ -42,6 +53,13 @@ p + geom_histogram(bins = 30) + labs(title = "Histogram of Salary by Gender")
 
 Below is a table of Standard Deviation, Mean, Coefficient of Variation, and Median of both genders in the data
 ```{r}
+################################################
+#
+# Calculates CV & Median of Data
+#
+################################################
+
+# Calculate Coefficient Variation and Median of original data
 sample_coef <- df %>% group_by(Sex) %>% summarise(SD  = sd(Salary),
                                                   mu = mean(Salary),
                                                   Coeff_var = SD / mu,
@@ -53,20 +71,62 @@ sample_coef
 
 ### A. Jackknife
 
+Computed Jackknife estimate of Median and Coefficient Variation and their respective Variance/Bias. The final table outputs the Variance/Bias of the CV followed by the Median.
+
 ```{r}
+#######################################################
+#
+# Jackknife Simulation for Variance/Bias of CV & Median
+#
+#######################################################
+
+# Initialize Parameters
+K <- 1000
+n <- nrow(df)
+l <- list()
+
+# Generate Jackknife Samples
+for(i in 1:n){
+  temp <- df[-i,]
+  temp <- temp %>% group_by(Sex) %>% summarise(SD  = sd(Salary),
+                                                  mu = mean(Salary),
+                                                  Coeff_var = SD / mu,
+                                                  Median = median(Salary))
+  l[[i]] <- temp
+}
+
+# Calculate Resulting Coefficient Variation & Median variance/Bias
+Jack_coeff_combined <- bind_rows(l, .id = "Indicator") %>% select(-"Indicator")
+
+Jack_coeff_combined %>% group_by(Sex) %>%
+  summarise(Var_Coeff_var = var(Coeff_var),
+            Bias_Coeff_var = mean(Coeff_var) - 
+              unlist((sample_coef %>% filter(Sex == "Female") %>% select(Coeff_var))),
+            Var_Median = var(Median),
+            Bias_Median = mean(Median) - 
+              unlist((sample_coef %>% filter(Sex == "Female") %>% select(Median))))
 
 ```
 
 
 ### B. Bootstrap
 
+Computed Bootstrap estimate of Median and Coefficient Variation and their respective Variance/Bias. The final table outputs the Variance/Bias of the CV followed by the Median.
 ```{r}
+#######################################################
+#
+# Bootstrap Simulation for Variance/Bias of CV & Median
+#
+#######################################################
+
+# Initialize Parameters and Load Library
 library(purrr)
-Num_Samples <- 10
+Num_Samples <- 100
 K <- 1000
 n <- nrow(df)
-
 l <- list()
+
+# Generate Bootstrap samples
 for(i in 1:Num_Samples){
   boot <- sample(1:n, size = K, replace = TRUE)
   boot_df <- df[boot,]
@@ -76,10 +136,17 @@ for(i in 1:Num_Samples){
                                                   Median = median(Salary))
   l[[i]] <- boot_coeff
 }
-boot_coeff_combined <- bind_rows(l, .id = "Indicator") %>% select(-"Indicator") %>% group_by(Sex) %>%
-  summarise(Coeff_var = mean(Coeff_var),
-            Median = mean(Median))
-boot_coeff_combined
-(boot_coeff_combined %>% select(Coeff_var, Median)) - (sample_coef %>% select(Coeff_var, Median))
+
+# Calculate Resulting Coefficient Variation & Median variance/Bias
+boot_coeff_combined <- bind_rows(l, .id = "Indicator") %>% select(-"Indicator")
+
+boot_coeff_combined %>% group_by(Sex) %>%
+  summarise(Var_Coeff_var = var(Coeff_var),
+            Bias_Coeff_var = mean(Coeff_var) - 
+              unlist((sample_coef %>% filter(Sex == "Female") %>% select(Coeff_var))),
+            Var_Median = var(Median),
+            Bias_Median = mean(Median) - 
+              unlist((sample_coef %>% filter(Sex == "Female") %>% select(Median))))
+
 ```
 
